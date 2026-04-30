@@ -1,0 +1,89 @@
+version: "3.9"
+
+services:
+  influxdb:
+    image: influxdb:2.7
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: admin123
+      DOCKER_INFLUXDB_INIT_ORG: pulseboard
+      DOCKER_INFLUXDB_INIT_BUCKET: pulseboard
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: pulseboard-token
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+
+  ingestion-api:
+    build:
+      context: ./ingestion-api
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: "4000"
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: pulseboard-token
+      INFLUX_ORG: pulseboard
+      INFLUX_BUCKET: pulseboard
+      SQLITE_PATH: ./data/pulseboard.db
+      LLM_PROVIDER: mock
+      LLM_MODEL: gemini-1.5-flash
+    volumes:
+      - ingestion-api-data:/app/data
+    depends_on:
+      - influxdb
+
+  dashboard:
+    build:
+      context: ./dashboard
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_WS_URL: ws://localhost:4000
+    depends_on:
+      - ingestion-api
+
+  agent-auth:
+    build:
+      context: ./agent
+    command: ["node", "src/agent.js", "--config", "configs/auth-service.json", "--ingest", "http://ingestion-api:4000"]
+    volumes:
+      - agent-logs:/app/logs
+    depends_on:
+      - ingestion-api
+
+  agent-order:
+    build:
+      context: ./agent
+    command: ["node", "src/agent.js", "--config", "configs/order-service.json", "--ingest", "http://ingestion-api:4000"]
+    volumes:
+      - agent-logs:/app/logs
+    depends_on:
+      - ingestion-api
+
+  agent-payment:
+    build:
+      context: ./agent
+    command: ["node", "src/agent.js", "--config", "configs/payment-service.json", "--ingest", "http://ingestion-api:4000"]
+    volumes:
+      - agent-logs:/app/logs
+    depends_on:
+      - ingestion-api
+
+  log-generator:
+    build:
+      context: ./agent
+    command: ["node", "src/log-generator.js"]
+    environment:
+      LOG_DIR: /app/logs
+      LOG_INTERVAL_MS: "2000"
+    volumes:
+      - agent-logs:/app/logs
+    depends_on:
+      - ingestion-api
+
+volumes:
+  influxdb-data:
+  ingestion-api-data:
+  agent-logs:

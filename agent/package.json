@@ -1,0 +1,9 @@
+{
+  "name": "pulseboard-agent",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/agent.js",
+  "scripts": {
+    "start": "node src/agent.js"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "service_name": "payment-service",
+  "log_path": "./logs/payment-service.log",
+  "ingest_url": "http://localhost:4000",
+  "chaos_mode": true
+}

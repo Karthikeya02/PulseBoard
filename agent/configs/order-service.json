@@ -1,0 +1,6 @@
+{
+  "service_name": "order-service",
+  "log_path": "./logs/order-service.log",
+  "ingest_url": "http://localhost:4000",
+  "chaos_mode": true
+}

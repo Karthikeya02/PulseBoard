@@ -1,0 +1,6 @@
+{
+  "service_name": "auth-service",
+  "log_path": "./logs/auth-service.log",
+  "ingest_url": "http://localhost:4000",
+  "chaos_mode": true
+}

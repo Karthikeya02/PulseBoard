@@ -9,6 +9,10 @@ const influxDB = new InfluxDB({ url: influxUrl, token });
 const writeApi = influxDB.getWriteApi(org, bucket, "ms");
 writeApi.useDefaultTags({ app: "pulseboard" });
 
+let warnedWriteFailure = false;
+
+// Best-effort: ingest (and the live WS feed) must keep working when InfluxDB
+// is down, e.g. local dev without Docker. History queries will just be empty.
 export async function writeMetrics(serviceName, cpu, memory, timestampMs) {
   const point = new Point(serviceName)
     .floatField("cpu", cpu)
@@ -16,7 +20,15 @@ export async function writeMetrics(serviceName, cpu, memory, timestampMs) {
     .timestamp(new Date(timestampMs));
 
   writeApi.writePoint(point);
-  await writeApi.flush();
+  try {
+    await writeApi.flush();
+    warnedWriteFailure = false;
+  } catch (error) {
+    if (!warnedWriteFailure) {
+      warnedWriteFailure = true;
+      console.warn("InfluxDB write failed; metrics not persisted:", error.message);
+    }
+  }
 }
 
 export async function queryMetrics(serviceName, minutes) {

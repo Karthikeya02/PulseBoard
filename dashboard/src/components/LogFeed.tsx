@@ -7,10 +7,15 @@ export interface LogFeedProps {
 }
 
 export default function LogFeed({ logs }: LogFeedProps) {
-  const logEndRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
+  // Scroll only the log container; scrollIntoView would also scroll the page
+  // itself to the feed on every batch.
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const list = listRef.current;
+    if (list) {
+      list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+    }
   }, [logs.length]);
 
   return (
@@ -19,7 +24,7 @@ export default function LogFeed({ logs }: LogFeedProps) {
         <h3>Live log feed</h3>
         <span className="panel-hint">Streaming from all services</span>
       </div>
-      <div className="log-list">
+      <div className="log-list" ref={listRef}>
         {logs.map((log) => (
           <div key={log.id} className={`log-line ${log.level.toLowerCase()}`}>
             <span className="log-time">{formatTime(log.timestamp)}</span>
@@ -28,7 +33,6 @@ export default function LogFeed({ logs }: LogFeedProps) {
             <span className="log-message">{log.message}</span>
           </div>
         ))}
-        <div ref={logEndRef} />
       </div>
     </section>
   );

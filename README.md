@@ -82,6 +82,8 @@ export LOG_DIR=./logs
 
 ### Dashboard
 
+The dashboard is a React + TypeScript app (strict mode) built with Vite.
+
 ```bash
 cd dashboard
 npm install
@@ -94,10 +96,37 @@ Set the WebSocket URL if the API is not on localhost:
 export VITE_WS_URL=ws://localhost:4000
 ```
 
-## Endpoints
+Other scripts:
 
-- POST /ingest
-- GET /metrics/:service?minutes=10
-- GET /logs/:service?level=ERROR
-- GET /anomalies?service=auth-service
-- WebSocket: ws://localhost:4000
+```bash
+npm run typecheck   # tsc --noEmit
+npm run build       # typecheck + production build
+```
+
+The data contracts for the WebSocket feed and REST responses are typed in
+`dashboard/src/types.ts` — update it alongside any change to the API's
+payload shapes.
+
+## API
+
+### REST endpoints
+
+- `POST /ingest` — agents push `{ service_name, timestamp, metrics: { cpu, memory }, log_lines }`; responds `{ ok, anomaly }` where `anomaly` is set if the sample tripped detection
+- `GET /metrics/:service?minutes=10` — `{ service, points }`; each point is `{ timestamp, cpu, memory }` with an ISO-8601 timestamp and nullable fields
+- `GET /logs/:service?level=ERROR&limit=200` — `{ service, logs }`, newest first
+- `GET /anomalies?service=auth-service&limit=100` — `{ anomalies }`, newest first
+- `GET /health` — `{ ok: true }`
+
+### WebSocket (ws://localhost:4000)
+
+Every frame is JSON with a `type` discriminant:
+
+| `type` | `data` | Sent |
+| --- | --- | --- |
+| `hello` | — (`message` string) | once, on connect |
+| `metrics` | `{ service_name, cpu, memory, timestamp }` | on every ingest |
+| `log_batch` | array of `{ service_name, level, message, timestamp }` | when an ingest includes log lines |
+| `anomaly` | `{ service_name, z_score, cpu, memory, summary, timestamp }` | when CPU z-score exceeds 2.5 |
+
+Log `level` is always one of `ERROR`, `WARN`, `INFO`. WebSocket timestamps are
+epoch milliseconds (unlike the ISO strings from `GET /metrics/:service`).

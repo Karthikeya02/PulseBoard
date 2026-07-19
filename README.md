@@ -1,6 +1,33 @@
 # PulseBoard
 
-Real-time microservices observability dashboard with AI-generated root-cause analysis.
+Real-time microservices observability platform with live metric streaming, statistical anomaly detection, and LLM-generated root-cause summaries.
+
+Lightweight Node.js agents sample CPU/memory and tail service logs, shipping them to an Express ingestion API that persists metrics to InfluxDB (time-series) and logs to SQLite, and fans events out to a React + TypeScript dashboard over WebSockets. A rolling z-score detector flags CPU anomalies and triggers an LLM pipeline (Gemini/OpenAI/Anthropic, with a mock fallback) that correlates each spike with recent error logs to produce a one-sentence root-cause summary. The whole stack runs under Docker Compose.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  LG[Log generator] --> A1[agent: auth-service]
+  LG --> A2[agent: order-service]
+  LG --> A3[agent: payment-service]
+  A1 -->|POST /ingest| API[Ingestion API<br/>Express + ws]
+  A2 -->|POST /ingest| API
+  A3 -->|POST /ingest| API
+  API --> INF[(InfluxDB<br/>metrics)]
+  API --> SQL[(SQLite<br/>logs + anomalies)]
+  API -->|z-score anomaly| LLM[LLM root-cause<br/>summary]
+  API -->|WebSocket fan-out| DASH[React + TypeScript<br/>dashboard]
+```
+
+## Tech stack
+
+- **Frontend**: React 18, TypeScript (strict), Vite, native WebSocket client; wire contracts modeled as discriminated unions with runtime-validated parsing (`dashboard/src/types.ts`)
+- **Backend**: Node.js, Express, `ws` WebSocket fan-out, REST API with input validation
+- **Data**: InfluxDB 2.x (time-series metrics, Flux queries), SQLite (indexed log/anomaly storage)
+- **AI**: pluggable LLM providers (Gemini / OpenAI / Anthropic) for anomaly root-cause summaries, with a deterministic mock for offline dev
+- **Detection**: rolling-window z-score over per-service CPU samples
+- **Infra**: Docker Compose (6 services), chaos-mode agents for fault injection; the API degrades gracefully when InfluxDB is unavailable
 
 ## Prereqs
 
